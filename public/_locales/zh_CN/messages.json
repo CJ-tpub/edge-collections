@@ -1,0 +1,8 @@
+{
+  "extensionName": {
+    "message": "集锦"
+  },
+  "extensionDescription": {
+    "message": "仿原Edge集锦的侧边栏集锦功能，支持修改、排序、批注、右键添加等功能。特色：支持原有Edge集锦数据文件兼容导入，无缝衔接使用！"
+  }
+}
