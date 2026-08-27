@@ -34,6 +34,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         sidepanel: resolve(projectRoot, 'sidepanel.html'),
+        capturePicker: resolve(projectRoot, 'capture-picker.html'),
         background: resolve(projectRoot, 'src/background.ts'),
       },
       output: {

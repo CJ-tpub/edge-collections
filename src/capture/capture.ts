@@ -11,6 +11,9 @@ export interface PageCapture {
 // 后台与侧栏共用的待处理快照键名；主体数据仍只存 IndexedDB。
 export const PENDING_CAPTURE_STORAGE_KEY = 'pendingPageCapture';
 
+// 右键弹出选择器使用独立键，避免已打开的侧栏误弹出旧式选择对话框。
+export const PENDING_CAPTURE_PICKER_STORAGE_KEY = 'pendingPageCapturePicker';
+
 // 侧栏和后台都使用这个最小标签快照，便于纯逻辑测试且不依赖浏览器对象。
 export interface TabSnapshot {
   title?: string;

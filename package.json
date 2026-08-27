@@ -1,6 +1,6 @@
 {
   "name": "edge-collections-revival",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "用于在 Microsoft Edge 侧边栏本地保存和整理网页集锦的 Manifest V3 扩展",
   "type": "module",

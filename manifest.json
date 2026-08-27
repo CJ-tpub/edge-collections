@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "集锦",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "仿原Edge集锦的侧边栏集锦功能，支持修改、排序、批注、右键添加等功能。特色：支持原有Edge集锦数据文件兼容导入，无缝衔接使用！",
   "icons": {
     "16": "icons/icon16.png",

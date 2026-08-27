@@ -57,6 +57,14 @@ const ITEM_DRAG_INDEX_TYPE = 'application/x-edge-item-index';
 const repository = new IndexedDbCollectionRepository();
 const settingsStore = new SettingsStore();
 
+// 右键弹窗保存后刷新已打开的侧栏，保持列表与 IndexedDB 一致。
+chrome.runtime.onMessage.addListener((message: unknown) => {
+  if (typeof message !== 'object' || message === null || Array.isArray(message) || !('type' in message)) {
+    return;
+  }
+  if (message.type === 'collection-page-added') void loadData();
+});
+
 type ViewState =
   | { kind: 'overview' }
   | { kind: 'detail'; collectionId: string }
@@ -900,6 +908,17 @@ const openCollectionMenu = (row: HTMLElement, collection: Collection): void => {
 const buildCollectionRow = (collection: Collection, displayIndex: number): HTMLElement => {
   const row = element('article', 'collection-row');
   row.dataset.collectionId = collection.id;
+  const quickAdd = button(
+    '',
+    () => addCurrentPage(collection.id),
+    'collection-quick-add',
+    "将当前网页添加到集锦：" + collection.name,
+  );
+  const quickAddIcon = element('span', 'collection-quick-add-icon');
+  const quickAddSymbol = element('span', 'collection-quick-add-symbol');
+  quickAddSymbol.setAttribute('aria-hidden', 'true');
+  quickAddIcon.append(quickAddSymbol);
+  quickAdd.append(quickAddIcon);
   const main = button('', () => {
     state.view = { kind: 'detail', collectionId: collection.id };
     state.settings = { ...state.settings, recentCollectionId: collection.id };
@@ -914,7 +933,7 @@ const buildCollectionRow = (collection: Collection, displayIndex: number): HTMLE
   const actions = element('div', 'collection-actions');
   const menuButton = button('⋯', () => openCollectionMenu(row, collection), 'icon-button collection-more', '集锦操作');
   actions.append(menuButton);
-  row.append(main, actions);
+  row.append(quickAdd, main, actions);
   enableCollectionDrag(row, collection, displayIndex);
   return row;
 };

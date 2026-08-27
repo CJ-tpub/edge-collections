@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { arePageCapturesEqual, createPageCapture, validatePageCapture } from '../src/capture/capture';
+import {
+  arePageCapturesEqual,
+  createPageCapture,
+  PENDING_CAPTURE_PICKER_STORAGE_KEY,
+  PENDING_CAPTURE_STORAGE_KEY,
+  validatePageCapture,
+} from '../src/capture/capture';
 import type { Collection, PageItem } from '../src/domain/types';
 import {
   domainFromUrl,
@@ -13,6 +19,10 @@ import {
 
 // 捕获逻辑只接受 HTTP/HTTPS，并把 favicon 降级为可选信息。
 describe('当前页捕获逻辑', () => {
+  it('为右键弹出选择器和侧栏回退保留独立暂存键', () => {
+    expect(PENDING_CAPTURE_PICKER_STORAGE_KEY).not.toBe(PENDING_CAPTURE_STORAGE_KEY);
+  });
+
   it('规范化网页地址和标题，拒绝危险协议', () => {
     expect(createPageCapture({ title: '网页', url: ' HTTPS://Example.com/a/#段落 ' }, 1_700_000_000_123)).toEqual({
       title: '网页',
