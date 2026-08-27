@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+*.local
+*.log
+output/
+release/*.zip
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite3
+collectionsSQLite
