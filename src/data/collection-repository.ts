@@ -67,6 +67,17 @@ const normalizeTargetPosition = (value: number): number => {
   return Math.trunc(value);
 };
 
+// 这些错误通常表示 IndexedDB 连接已失效，重开连接后可以安全重试一次。
+const isRetryableIndexedDbError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  return error.name === 'AbortError'
+    || error.name === 'InvalidStateError'
+    || error.name === 'TransactionInactiveError'
+    || error.name === 'UnknownError';
+};
+
 // 原生 IndexedDB 集锦仓库，集合和卡片分别存放并通过 collectionId 关联。
 export class IndexedDbCollectionRepository {
   private readonly databaseName: string;
@@ -92,10 +103,17 @@ export class IndexedDbCollectionRepository {
   // 打开数据库并在首次创建时建立必要的对象仓库和索引。
   private async open(): Promise<IDBDatabase> {
     if (this.databasePromise !== undefined) {
-      return this.databasePromise;
+      const cachedPromise = this.databasePromise;
+      // 旧连接的失败不能永久缓存，否则后续刷新只会继续显示空状态。
+      return cachedPromise.catch((error: unknown) => {
+        if (this.databasePromise === cachedPromise) {
+          this.databasePromise = undefined;
+        }
+        throw error;
+      });
     }
 
-    this.databasePromise = new Promise<IDBDatabase>((resolve, reject) => {
+    const pendingPromise = new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(this.databaseName, COLLECTION_DATABASE_VERSION);
       request.onupgradeneeded = () => {
         const database = request.result;
@@ -127,14 +145,26 @@ export class IndexedDbCollectionRepository {
       };
       request.onsuccess = () => {
         const database = request.result;
-        database.onversionchange = () => database.close();
+        database.onversionchange = () => {
+          database.close();
+          if (this.databasePromise === trackedPromise) {
+            this.databasePromise = undefined;
+          }
+        };
         resolve(database);
       };
       request.onerror = () => reject(request.error ?? new Error('无法打开 IndexedDB 数据库。'));
       request.onblocked = () => reject(new Error('IndexedDB 数据库仍被其他页面占用。'));
     });
 
-    return this.databasePromise;
+    const trackedPromise = pendingPromise.catch((error: unknown) => {
+      if (this.databasePromise === trackedPromise) {
+        this.databasePromise = undefined;
+      }
+      throw error;
+    });
+    this.databasePromise = trackedPromise;
+    return trackedPromise;
   }
 
   // 统一等待事务提交，保证每个写操作都在事务完成后才向调用方返回。
@@ -143,36 +173,53 @@ export class IndexedDbCollectionRepository {
     mode: IDBTransactionMode,
     operation: (transaction: IDBTransaction) => Promise<T>,
   ): Promise<T> {
-    const database = await this.open();
-    const transaction = database.transaction([...stores], mode);
-    const completed = new Promise<void>((resolve, reject) => {
-      transaction.oncomplete = () => resolve();
-      transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB 事务已中止。'));
-    });
-
-    try {
-      const result = await operation(transaction);
-      await completed;
-      return result;
-    } catch (error: unknown) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      let transaction: IDBTransaction | undefined;
+      let completed: Promise<void> | undefined;
       try {
-        transaction.abort();
-      } catch {
-        // 事务已完成或已中止时无需重复处理。
+        const database = await this.open();
+        const activeTransaction = database.transaction([...stores], mode);
+        transaction = activeTransaction;
+        completed = new Promise<void>((resolve, reject) => {
+          activeTransaction.addEventListener('complete', () => resolve(), { once: true });
+          activeTransaction.addEventListener('abort', () => reject(activeTransaction.error ?? new Error('IndexedDB 事务已中止。')), { once: true });
+        });
+
+        const result = await operation(activeTransaction);
+        await completed;
+        return result;
+      } catch (error: unknown) {
+        try {
+          transaction?.abort();
+        } catch {
+          // 事务已完成或已中止时无需重复处理。
+        }
+        await completed?.catch(() => undefined);
+        if (attempt === 0 && isRetryableIndexedDbError(error)) {
+          // 连接失效时关闭旧句柄并重新打开，避免把空状态误认为数据已丢失。
+          await this.close();
+          continue;
+        }
+        throw error;
       }
-      await completed.catch(() => undefined);
-      throw error;
     }
+
+    throw new Error('IndexedDB 读取失败。');
   }
 
   // 关闭当前连接，让测试或未来的数据库升级可以安全地重新打开。
   public async close(): Promise<void> {
-    if (this.databasePromise === undefined) {
+    const cachedPromise = this.databasePromise;
+    this.databasePromise = undefined;
+    if (cachedPromise === undefined) {
       return;
     }
-    const database = await this.databasePromise;
-    database.close();
-    this.databasePromise = undefined;
+    try {
+      const database = await cachedPromise;
+      database.close();
+    } catch {
+      // 打开失败时没有可关闭的数据库句柄。
+    }
   }
 
   // 读取全部集合，并按位置返回副本；读取操作不会隐式修改数据库。

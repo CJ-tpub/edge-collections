@@ -83,7 +83,7 @@ $env:EDGE_COLLECTIONS_EXPECTED_THUMBNAILS = '323'
 npm test -- --run tests/real-database.test.ts --testTimeout=30000
 ```
 
-`dist` 是可直接加载的构建产物；`release/edge-collections-0.3.2.zip` 是内容相同的发布压缩包，解压后通过 Edge 的“加载解压缩的扩展”选择解压目录。
+`dist` 是可直接加载的构建产物；`release/edge-collections-0.3.3.zip` 是内容相同的发布压缩包，解压后通过 Edge 的“加载解压缩的扩展”选择解压目录。
 
 ## 许可证
 

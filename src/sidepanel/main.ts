@@ -79,6 +79,7 @@ interface AppState {
   searchQuery: string;
   highlightItemId: string | null;
   loading: boolean;
+  loadError: string | null;
   importing: boolean;
   pendingCapture?: PageCapture;
   pendingDialogOpen: boolean;
@@ -93,6 +94,7 @@ const state: AppState = {
   searchQuery: '',
   highlightItemId: null,
   loading: true,
+  loadError: null,
   importing: false,
   pendingDialogOpen: false,
 };
@@ -322,6 +324,7 @@ const loadData = async (anchorOverride?: ScrollAnchor): Promise<void> => {
     state.collections = collections;
     state.itemsByCollection = new Map(itemGroups);
     state.loading = false;
+    state.loadError = null;
     const detailCollectionId = state.view.kind === 'detail' ? state.view.collectionId : undefined;
     if (detailCollectionId !== undefined && !collections.some((collection) => collection.id === detailCollectionId)) {
       state.view = { kind: 'overview' };
@@ -331,8 +334,9 @@ const loadData = async (anchorOverride?: ScrollAnchor): Promise<void> => {
     await refreshSearchResults(scrollAnchor);
   } catch (error: unknown) {
     state.loading = false;
+    state.loadError = error instanceof Error ? error.message : '读取集锦失败。';
     render(false, scrollAnchor);
-    showToast(error instanceof Error ? error.message : '读取集锦失败。', 'error');
+    showToast(`读取集锦失败，数据未被清空：${state.loadError}`, 'error');
   }
 };
 
@@ -1359,6 +1363,16 @@ const renderOverview = (main: HTMLElement): void => {
   directionButton.title = state.settings.sortDescending ? '当前反序，点击切换为正序' : '当前正序，点击切换为反序';
   intro.append(introText, directionButton);
   main.append(intro);
+  if (state.loadError !== null) {
+    const errorState = element('section', 'empty-state compact-empty');
+    errorState.append(
+      element('h2', undefined, '暂时无法读取集锦'),
+      element('p', undefined, `数据未被清空。错误：${state.loadError}`),
+      button('重新读取', () => void loadData(), 'primary-button'),
+    );
+    main.append(errorState);
+    if (state.collections.length === 0) return;
+  }
   if (state.collections.length === 0) {
     const empty = element('section', 'empty-state');
     empty.append(element('div', 'empty-icon', '▤'), element('h2', undefined, '从一个集锦开始'), element('p', undefined, '把网页、备注和想法集中到一个安静的列表里。'), button('新建集锦', openCreateCollectionDialog, 'primary-button'));

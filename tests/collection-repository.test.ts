@@ -35,6 +35,30 @@ afterEach(async () => {
 });
 
 describe('IndexedDbCollectionRepository', () => {
+  it('缓存的打开失败后会重新建立数据库连接', async () => {
+    const repository = createRepository();
+    type RepositoryInternals = { databasePromise?: Promise<IDBDatabase> };
+    const internals = repository as unknown as RepositoryInternals;
+    const failedPromise = Promise.reject(new Error('模拟 IndexedDB 打开失败。'));
+    void failedPromise.catch(() => undefined);
+    internals.databasePromise = failedPromise;
+
+    await expect(repository.listCollections()).rejects.toThrow('模拟 IndexedDB 打开失败。');
+    expect(await repository.listCollections()).toEqual([]);
+  });
+
+  it('连接被关闭后读取会自动重试，不会显示为空集锦', async () => {
+    const repository = createRepository();
+    await repository.createCollection('保留数据');
+    type RepositoryInternals = { databasePromise?: Promise<IDBDatabase> };
+    const internals = repository as unknown as RepositoryInternals;
+    const databasePromise = internals.databasePromise;
+    if (databasePromise === undefined) throw new Error('测试未取得数据库连接。');
+    (await databasePromise).close();
+
+    expect((await repository.listCollections()).map((collection) => collection.name)).toEqual(['保留数据']);
+  });
+
   it('支持集合 CRUD、重命名、删除和位置归一化', async () => {
     const repository = createRepository();
     const first = await repository.createCollection('  阅读  ');
