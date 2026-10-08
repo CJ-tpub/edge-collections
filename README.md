@@ -56,7 +56,9 @@ Chromium 会把 Windows 的 Local AppData 和浏览器 User Data 视为敏感目
 
 JSON 备份包含集合、网页、备注、旧便笺和轻量设置；CSV 包含 `Collection/Title/URL/Note/CreatedAt`，使用 UTF-8 BOM。建议在替换导入前另行保存下载的备份文件。
 
-扩展仅使用本机 IndexedDB 保存集合和卡片，`storage.local` 只保存主题、排序、字号和最近集合，`storage.session` 只暂存右键捕获的当前页。扩展不上传 SQLite、网址、备注或缩略图，也不依赖 Microsoft 账号同步。
+扩展还会在 `storage.local` 中保留一份不含大缩略图的自动恢复快照；如果 IndexedDB 被浏览器重建为空库，侧栏会提示确认恢复这份快照，不会自动覆盖当前数据。
+
+扩展仅使用本机 IndexedDB 保存集合和卡片，`storage.local` 保存主题、排序、字号、最近集合和去除缩略图后的自动恢复快照，`storage.session` 只暂存右键捕获的当前页。扩展不上传 SQLite、网址、备注或缩略图，也不依赖 Microsoft 账号同步。
 
 ## 权限
 
@@ -83,7 +85,7 @@ $env:EDGE_COLLECTIONS_EXPECTED_THUMBNAILS = '323'
 npm test -- --run tests/real-database.test.ts --testTimeout=30000
 ```
 
-`dist` 是可直接加载的构建产物；`release/edge-collections-0.3.3.zip` 是内容相同的发布压缩包，解压后通过 Edge 的“加载解压缩的扩展”选择解压目录。
+`dist` 是可直接加载的构建产物；`release/edge-collections-0.3.4.zip` 是内容相同的发布压缩包，解压后通过 Edge 的“加载解压缩的扩展”选择解压目录。
 
 ## 许可证
 

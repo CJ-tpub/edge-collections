@@ -20,6 +20,7 @@ import {
   SettingsStore,
 } from '../settings/settings-store';
 import {
+  createAutomaticRecoveryBackupV1,
   createBackupV1,
   parseBackupJson,
   stringifyBackupV1,
@@ -56,6 +57,8 @@ const ITEM_DRAG_INDEX_TYPE = 'application/x-edge-item-index';
 
 const repository = new IndexedDbCollectionRepository();
 const settingsStore = new SettingsStore();
+const AUTOMATIC_RECOVERY_STORAGE_KEY = 'automaticRecoveryBackupV1';
+const AUTOMATIC_RECOVERY_MAX_JSON_LENGTH = 5_000_000;
 
 // 右键弹窗保存后刷新已打开的侧栏，保持列表与 IndexedDB 一致。
 chrome.runtime.onMessage.addListener((message: unknown) => {
@@ -80,6 +83,7 @@ interface AppState {
   highlightItemId: string | null;
   loading: boolean;
   loadError: string | null;
+  automaticRecoverySnapshot: BackupV1 | null;
   importing: boolean;
   pendingCapture?: PageCapture;
   pendingDialogOpen: boolean;
@@ -95,6 +99,7 @@ const state: AppState = {
   highlightItemId: null,
   loading: true,
   loadError: null,
+  automaticRecoverySnapshot: null,
   importing: false,
   pendingDialogOpen: false,
 };
@@ -309,6 +314,32 @@ const applyTheme = (): void => {
   }
 };
 
+// 读取扩展本地保存的自动恢复快照；损坏快照只忽略，不影响正常启动。
+const readAutomaticRecoverySnapshot = async (): Promise<BackupV1 | null> => {
+  const values = await chrome.storage.local.get(AUTOMATIC_RECOVERY_STORAGE_KEY);
+  const rawValue = values[AUTOMATIC_RECOVERY_STORAGE_KEY];
+  if (typeof rawValue !== 'string') return null;
+  try {
+    return parseBackupJson(rawValue);
+  } catch {
+    return null;
+  }
+};
+
+// 成功读取非空数据后更新自动恢复快照，不用缩略图占用本地存储配额。
+const saveAutomaticRecoverySnapshot = async (): Promise<void> => {
+  if (state.collections.length === 0) return;
+  const items = state.collections.flatMap((collection) => state.itemsByCollection.get(collection.id) ?? []);
+  const snapshot = createAutomaticRecoveryBackupV1(state.collections, items, state.settings);
+  const json = stringifyBackupV1(snapshot);
+  if (json.length > AUTOMATIC_RECOVERY_MAX_JSON_LENGTH) {
+    showToast('自动恢复快照过大，已保留上一次快照。', 'error');
+    return;
+  }
+  await chrome.storage.local.set({ [AUTOMATIC_RECOVERY_STORAGE_KEY]: json });
+  state.automaticRecoverySnapshot = snapshot;
+};
+
 // 读取全部主体数据，保留空集合并按集合建立卡片索引。
 const loadData = async (anchorOverride?: ScrollAnchor): Promise<void> => {
   const currentVersion = ++renderVersion;
@@ -325,6 +356,9 @@ const loadData = async (anchorOverride?: ScrollAnchor): Promise<void> => {
     state.itemsByCollection = new Map(itemGroups);
     state.loading = false;
     state.loadError = null;
+    if (collections.length > 0) {
+      await saveAutomaticRecoverySnapshot().catch(() => undefined);
+    }
     const detailCollectionId = state.view.kind === 'detail' ? state.view.collectionId : undefined;
     if (detailCollectionId !== undefined && !collections.some((collection) => collection.id === detailCollectionId)) {
       state.view = { kind: 'overview' };
@@ -338,6 +372,22 @@ const loadData = async (anchorOverride?: ScrollAnchor): Promise<void> => {
     render(false, scrollAnchor);
     showToast(`读取集锦失败，数据未被清空：${state.loadError}`, 'error');
   }
+};
+
+// 由用户确认后恢复自动快照，避免空库启动时自动覆盖当前状态。
+const restoreAutomaticRecoverySnapshot = (): void => {
+  const snapshot = state.automaticRecoverySnapshot;
+  if (snapshot === null) return;
+  showConfirmDialog(
+    '恢复自动快照',
+    `发现 ${snapshot.collections.length} 个集锦和 ${snapshot.items.length} 个项目。确认恢复吗？当前数据会先按现有替换流程保留。`,
+    '恢复',
+    async () => {
+      await repository.replaceImport(snapshot);
+      await loadData();
+      showToast('自动恢复完成。');
+    },
+  );
 };
 
 // 搜索读取全量索引，并在结果中保留所属集合以便定位。
@@ -1370,8 +1420,21 @@ const renderOverview = (main: HTMLElement): void => {
       element('p', undefined, `数据未被清空。错误：${state.loadError}`),
       button('重新读取', () => void loadData(), 'primary-button'),
     );
+    if (state.automaticRecoverySnapshot !== null) {
+      errorState.append(button('恢复自动快照', restoreAutomaticRecoverySnapshot, 'secondary-button'));
+    }
     main.append(errorState);
     if (state.collections.length === 0) return;
+  }
+  if (state.collections.length === 0 && state.automaticRecoverySnapshot !== null) {
+    const recoveryState = element('section', 'empty-state compact-empty');
+    recoveryState.append(
+      element('h2', undefined, '发现自动恢复数据'),
+      element('p', undefined, `本机保存了 ${state.automaticRecoverySnapshot.collections.length} 个集锦和 ${state.automaticRecoverySnapshot.items.length} 个项目。`),
+      button('恢复自动快照', restoreAutomaticRecoverySnapshot, 'primary-button'),
+    );
+    main.append(recoveryState);
+    return;
   }
   if (state.collections.length === 0) {
     const empty = element('section', 'empty-state');
@@ -1516,6 +1579,7 @@ const render = (resetScroll = false, anchorOverride?: ScrollAnchor): void => {
 // 启动侧栏并监听后台写入的待处理页面。
 const start = async (): Promise<void> => {
   state.settings = await settingsStore.get();
+  state.automaticRecoverySnapshot = await readAutomaticRecoverySnapshot();
   await loadData();
   await readPendingCapture();
   chrome.storage.onChanged.addListener((changes, areaName) => {

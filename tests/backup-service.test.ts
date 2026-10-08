@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { exportCollectionsCsv, decodeCollectionsCsv } from '../src/backup/csv-export';
 import {
   BackupValidationError,
+  createAutomaticRecoveryBackupV1,
   createBackupV1,
   parseBackupJson,
   stringifyBackupV1,
@@ -64,6 +65,27 @@ const createValidBackup = async (repository: IndexedDbCollectionRepository): Pro
 };
 
 describe('BackupV1 和 CSV', () => {
+  it('自动恢复快照保留内容但去掉大缩略图', async () => {
+    const repository = createRepository();
+    const collection = await repository.createCollection('自动恢复集合');
+    const page = await repository.createPageItem({
+      collectionId: collection.id,
+      title: '带缩略图网页',
+      url: 'https://example.com/recovery',
+      note: '保留备注',
+      thumbnailDataUrl: `data:image/png;base64,${'A'.repeat(64)}`,
+    });
+    const snapshot = createAutomaticRecoveryBackupV1(
+      [collection],
+      [page],
+      undefined,
+      1_700_000_100_000,
+    );
+    expect(snapshot.items).toHaveLength(1);
+    expect(snapshot.items[0]).not.toHaveProperty('thumbnailDataUrl');
+    expect(snapshot.items[0]).toMatchObject({ title: '带缩略图网页', note: '保留备注' });
+  });
+
   it('支持 BackupV1 JSON 往返和运行时安全校验', async () => {
     const repository = createRepository();
     const backup = await createValidBackup(repository);

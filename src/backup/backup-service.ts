@@ -296,6 +296,24 @@ export function createBackupV1(
   return validateBackupV1(value);
 }
 
+// 创建本地自动恢复快照；去掉大缩略图，保留网页、备注、顺序和设置。
+export function createAutomaticRecoveryBackupV1(
+  collections: readonly Collection[],
+  items: readonly CollectionItem[],
+  settings?: CollectionSettings,
+  exportedAt = Date.now(),
+): BackupV1 {
+  const recoveryItems = items.map((item): CollectionItem => {
+    if (item.type !== 'page' || item.thumbnailDataUrl === undefined) {
+      return { ...item };
+    }
+    const pageWithoutThumbnail: PageItem = { ...item };
+    delete pageWithoutThumbnail.thumbnailDataUrl;
+    return pageWithoutThumbnail;
+  });
+  return createBackupV1(collections, recoveryItems, settings, exportedAt);
+}
+
 // 使用稳定缩进生成可保存的 UTF-8 JSON 文本。
 export function stringifyBackupV1(backup: BackupV1): string {
   return JSON.stringify(validateBackupV1(backup), null, 2);
