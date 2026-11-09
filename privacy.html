@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>集锦 — 隐私政策</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif; line-height: 1.8; color: #1f2328; background: #f7f8fa; }
+  main { max-width: 780px; margin: 0 auto; padding: 56px 24px 80px; }
+  header { border-bottom: 1px solid #e3e6eb; padding-bottom: 22px; margin-bottom: 28px; }
+  h1 { font-size: 30px; margin: 0 0 8px; letter-spacing: -.3px; }
+  .meta { color: #6b7480; font-size: 14px; }
+  h2 { font-size: 19px; margin: 32px 0 10px; }
+  p, li { font-size: 15px; color: #333a43; }
+  ul { padding-left: 22px; }
+  li { margin: 6px 0; }
+  code { background: #eef1f5; border-radius: 4px; padding: 1px 6px; font-family: "Cascadia Code", Consolas, monospace; font-size: 13px; }
+  .card { background: #fff; border: 1px solid #e3e6eb; border-radius: 12px; padding: 20px 22px; margin: 18px 0; }
+  a { color: #0b62c4; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #15171a; color: #e6e9ee; }
+    header { border-bottom-color: #2c3238; }
+    p, li { color: #c3cbd5; }
+    .card { background: #1d2126; border-color: #2c3238; }
+    code { background: #262c33; }
+    a { color: #6fb3ff; }
+    .meta { color: #98a2ad; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>集锦 — 隐私政策</h1>
+    <div class="meta">适用于 Microsoft Edge 扩展「集锦」 · 最后更新：2026 年 11 月 9 日</div>
+  </header>
+
+  <p>「集锦」是一款在 Microsoft Edge 侧边栏中本地保存和整理网页收藏的扩展。本政策说明扩展会接触哪些数据、这些数据存放在哪里，以及扩展不会做什么。</p>
+
+  <h2>1. 扩展保存的数据</h2>
+  <div class="card">
+    <ul>
+      <li><strong>集锦与网页卡片：</strong>集锦名称、网页标题、网址、备注、可选缩略图，以及排序位置和时间戳，保存在浏览器的 IndexedDB 数据库 <code>edge-collections</code> 中。</li>
+      <li><strong>轻量设置：</strong>主题、排序方式、字号、最近打开的集锦，以及一份去除了缩略图的自动恢复快照，保存在 <code>storage.local</code>。</li>
+      <li><strong>一次性页面快照：</strong>通过右键菜单添加网页时，当前页的标题与网址会暂存在 <code>storage.session</code>，保存完成或窗口关闭后即清除。</li>
+    </ul>
+  </div>
+
+  <h2>2. 扩展读取的数据</h2>
+  <ul>
+    <li>当用户点击「添加当前页」、使用右键菜单或把网页拖入扩展时，读取当前活动标签页的标题与网址；</li>
+    <li>仅在用户主动选择文件时，读取用于迁移的旧版 Edge 集锦数据库文件（<code>collectionsSQLite</code>）或 JSON 备份；</li>
+    <li>打开已保存的网页时，使用浏览器正常打开对应网址。</li>
+  </ul>
+
+  <h2>3. 数据不会离开本机</h2>
+  <div class="card">
+    <ul>
+      <li>扩展不向任何服务器上传、同步或备份用户的集锦、网址、备注、缩略图或设置；</li>
+      <li>不出售、不出租、不与第三方共享上述数据；</li>
+      <li>不将数据用于广告、画像、信用评估或与扩展功能无关的目的；</li>
+      <li>不包含分析、追踪或遥测代码，也不加载任何远程代码；SQLite 解析使用的 <code>sql.js</code> WebAssembly 文件随扩展一同分发，在本地运行。</li>
+    </ul>
+  </div>
+
+  <h2>4. 数据删除</h2>
+  <ul>
+    <li>在扩展内删除集锦或卡片，会同时删除对应的本地记录；</li>
+    <li>卸载扩展或清除该扩展的站点数据，会删除 IndexedDB 与 <code>storage.local</code> 中的全部内容；</li>
+    <li>扩展不保留任何云端副本，因此删除后无法由开发者恢复。</li>
+  </ul>
+
+  <h2>5. 权限说明</h2>
+  <ul>
+    <li><code>sidePanel</code>：在 Edge 侧边栏显示集锦界面；</li>
+    <li><code>storage</code>：保存主题、排序、字号等轻量设置与一次性待处理快照；</li>
+    <li><code>contextMenus</code>：提供一个「添加当前页到集锦」的右键菜单项；</li>
+    <li><code>tabs</code>：读取当前活动标签页的标题与网址用于添加收藏，并打开已保存的网页。</li>
+  </ul>
+  <p>扩展未申请主机权限、文件系统权限、下载权限、书签权限或本机通信权限。</p>
+
+  <h2>6. 联系方式</h2>
+  <p>如对本政策或数据处理有疑问，请通过 GitHub 仓库提交 Issue：<br />
+  <a href="https://github.com/CJ-tpub/edge-collections/issues">https://github.com/CJ-tpub/edge-collections/issues</a></p>
+
+  <h2>7. 政策变更</h2>
+  <p>本政策如有更新，将在本页面发布并更新顶部的日期。继续使用扩展即表示接受更新后的政策。</p>
+</main>
+</body>
+</html>
